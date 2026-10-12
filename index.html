@@ -63,6 +63,11 @@ button.primary{background:var(--teal);border-color:var(--teal);color:var(--surfa
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 @media (max-width:560px){.row{grid-template-columns:1fr}.row button.del{justify-self:start}}
 [hidden]{display:none!important}
+.tools{display:flex;flex-wrap:wrap;gap:10px}
+#savedList{margin-top:12px}
+.saved-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.saved-row .nm{flex:1;min-width:180px;font-weight:600}
+.saved-row .dt{color:var(--muted);font-size:.85rem;display:block;font-weight:400}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@700&display=swap">
@@ -75,6 +80,19 @@ button.primary{background:var(--teal);border-color:var(--teal);color:var(--surfa
   <img src="data:image/jpeg;base64,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" alt="YA Group">
   <div><h1>Triage Field Form</h1><p>Hurricane Isaias &middot; fill in on site, then save the Triage Report as Word or PDF. Your entries save on this device as you type.</p></div>
 </header>
+
+<section class="card" id="inspCard">
+  <h2>Inspections</h2>
+  <p class="hint">Save this inspection to come back to it, or Export it to send the prep to another device. Import loads a prep file from Files.</p>
+  <div class="tools">
+    <button type="button" id="saveInspBtn">Save inspection</button>
+    <button type="button" id="openSavedBtn">Open saved (<span id="savedCount">0</span>)</button>
+    <button type="button" id="exportBtn">Export</button>
+    <button type="button" id="importBtn">Import</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+  <div id="savedList" class="rows" hidden></div>
+</section>
 
 <form id="f" autocomplete="off">
 
@@ -1025,6 +1043,60 @@ $("wordBtn").addEventListener("click", async ()=>{
   try{ blob = await buildDocx(); }catch(e){ setStatus("Couldn't build the Word file: " + e.message, true); return; }
   await deliver(blob, baseName() + ".docx");
 });
+
+/* ---------- saved inspections, export, import ---------- */
+const SAVED_KEY = "ya-triage-saved-v1";
+function saveQuiet(){ try{ localStorage.setItem(KEY, JSON.stringify(collect())); }catch(e){} }
+function readSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||"{}"); }catch(e){ return {}; } }
+function writeSaved(o){ try{ localStorage.setItem(SAVED_KEY, JSON.stringify(o)); return true; }catch(e){ setStatus("This device couldn't save the inspection.", true); return false; } }
+function inspName(){ return (v("insured") || v("street") || "Untitled inspection").replace(/[\\/:*?"<>|]/g,"").trim(); }
+function renderSaved(){
+  const o = readSaved(); const keys = Object.keys(o).sort((a,b)=> (o[b].savedAt||"").localeCompare(o[a].savedAt||""));
+  $("savedCount").textContent = keys.length;
+  const box = $("savedList"); box.innerHTML = "";
+  if(!keys.length){ const p=document.createElement("p"); p.className="hint"; p.textContent="No saved inspections on this device yet."; box.appendChild(p); return; }
+  keys.forEach(k=>{
+    const row=document.createElement("div"); row.className="saved-row";
+    const nm=document.createElement("span"); nm.className="nm"; nm.textContent=k;
+    const dt=document.createElement("span"); dt.className="dt"; dt.textContent="Saved " + new Date(o[k].savedAt).toLocaleString(); nm.appendChild(dt);
+    const op=document.createElement("button"); op.type="button"; op.textContent="Open";
+    op.addEventListener("click",()=>{ apply(o[k].state); saveQuiet(); box.hidden=true; setStatus("Opened: " + k); window.scrollTo(0,0); });
+    const del=document.createElement("button"); del.type="button"; del.className="del"; del.textContent="Delete";
+    del.addEventListener("click",()=>{
+      if(del.dataset.armed){ const all=readSaved(); delete all[k]; writeSaved(all); renderSaved(); setStatus("Deleted: " + k); }
+      else { del.dataset.armed="1"; del.textContent="Tap again to delete"; }
+    });
+    row.append(nm, op, del); box.appendChild(row);
+  });
+}
+$("saveInspBtn").addEventListener("click",()=>{
+  const name = inspName(); const all = readSaved();
+  all[name] = {savedAt: new Date().toISOString(), state: collect()};
+  if(writeSaved(all)){ renderSaved(); setStatus("Saved inspection: " + name); }
+});
+$("openSavedBtn").addEventListener("click",()=>{ renderSaved(); $("savedList").hidden = !$("savedList").hidden; });
+$("exportBtn").addEventListener("click", async ()=>{
+  const data = {type:"ya-triage-prep", version:1, exportedAt:new Date().toISOString(), state: collect()};
+  const blob = new Blob([JSON.stringify(data)], {type:"application/json"});
+  await deliver(blob, inspName() + " prep.json");
+});
+$("importBtn").addEventListener("click",()=>{ $("importFile").value=""; $("importFile").click(); });
+$("importFile").addEventListener("change",()=>{
+  const f = $("importFile").files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const d = JSON.parse(r.result);
+      if(!d || d.type!=="ya-triage-prep" || !d.state) throw new Error("not a YA triage prep file");
+      apply(d.state); saveQuiet();
+      const all = readSaved(); all[inspName()] = {savedAt:new Date().toISOString(), state: collect()}; writeSaved(all); renderSaved();
+      setStatus("Imported: " + inspName() + ". It's also in Open saved."); window.scrollTo(0,0);
+    }catch(e){ setStatus("That file couldn't be imported: " + e.message + ".", true); }
+  };
+  r.onerror = ()=> setStatus("That file couldn't be read.", true);
+  r.readAsText(f);
+});
+renderSaved();
 if("serviceWorker" in navigator && (location.protocol==="https:"||location.hostname==="localhost")){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
 })();
 </script>
