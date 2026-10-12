@@ -83,13 +83,11 @@ button.primary{background:var(--teal);border-color:var(--teal);color:var(--surfa
 
 <section class="card" id="inspCard">
   <h2>Inspections</h2>
-  <p class="hint">Save this inspection to come back to it, or Export it to send the prep to another device. Import loads a prep file from Files.</p>
+  <p class="hint">Save this inspection to come back to it. Email to crew sends a link that opens this form on their iPad with everything you filled in.</p>
   <div class="tools">
     <button type="button" id="saveInspBtn">Save inspection</button>
     <button type="button" id="openSavedBtn">Open saved (<span id="savedCount">0</span>)</button>
-    <button type="button" id="exportBtn">Export</button>
-    <button type="button" id="importBtn">Import</button>
-    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <button type="button" class="primary" id="emailBtn">Email to crew</button>
   </div>
   <div id="savedList" class="rows" hidden></div>
 </section>
@@ -1075,28 +1073,70 @@ $("saveInspBtn").addEventListener("click",()=>{
   if(writeSaved(all)){ renderSaved(); setStatus("Saved inspection: " + name); }
 });
 $("openSavedBtn").addEventListener("click",()=>{ renderSaved(); $("savedList").hidden = !$("savedList").hidden; });
-$("exportBtn").addEventListener("click", async ()=>{
-  const data = {type:"ya-triage-prep", version:1, exportedAt:new Date().toISOString(), state: collect()};
-  const blob = new Blob([JSON.stringify(data)], {type:"application/json"});
-  await deliver(blob, inspName() + " prep.json");
+/* ---------- email a prefilled link ---------- */
+function b64u(bytes){ let s=""; bytes.forEach(c=>s+=String.fromCharCode(c)); return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
+function unb64u(t){ t=t.replace(/-/g,"+").replace(/_/g,"/"); while(t.length%4) t+="="; const s=atob(t); const u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u; }
+function prepDelta(){
+  const cur = collect(), d = {};
+  Object.keys(cur).forEach(k=>{
+    if(k==="reportDate") return;
+    const a = JSON.stringify(cur[k]), base = JSON.stringify(DEFAULTS[k]);
+    if(Array.isArray(cur[k])){ const nonEmpty = cur[k].filter(r=>Object.values(r).some(x=>String(x).trim())); if(nonEmpty.length && JSON.stringify(nonEmpty)!==base) d[k]=nonEmpty; }
+    else if(a!==base) d[k]=cur[k];
+  });
+  return d;
+}
+async function encodePrep(obj){
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  if(window.CompressionStream){
+    try{ const cs = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw")); const out = new Uint8Array(await new Response(cs).arrayBuffer()); return "z" + b64u(out); }catch(e){}
+  }
+  return "j" + b64u(bytes);
+}
+async function decodePrep(t){
+  const kind = t[0], bytes = unb64u(t.slice(1));
+  let text;
+  if(kind==="z"){ const ds = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw")); text = await new Response(ds).text(); }
+  else text = new TextDecoder().decode(bytes);
+  return JSON.parse(text);
+}
+$("emailBtn").addEventListener("click", async ()=>{
+  const delta = prepDelta();
+  if(!Object.keys(delta).length){ setStatus("Fill in the property info first, then tap Email to crew.", true); return; }
+  const link = location.origin + location.pathname + "#p=" + await encodePrep(delta);
+  const name = inspName().replace(/\.$/,"");
+  const label = "Open triage form: " + name;
+  const esc = t => t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const html = '<p>Tap the link below on your iPad to open your inspection. That\'s all you need to do.</p><p><a href="' + esc(link) + '">' + esc(label) + '</a></p>';
+  const text = "Tap the link below on your iPad to open your inspection.\n\n" + label + ":\n" + link;
+  let copied = false;
+  try{
+    if(window.ClipboardItem && navigator.clipboard.write){
+      await navigator.clipboard.write([new ClipboardItem({"text/html": new Blob([html],{type:"text/html"}), "text/plain": new Blob([text],{type:"text/plain"})})]);
+      copied = true;
+    }
+  }catch(e){}
+  if(!copied){ try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){} }
+  const msg = copied ? "Outlook is opening. Click in the email body and press Ctrl+V (Cmd+V on a Mac) to paste the link, then send." : "Your browser blocked copying. Use Chrome or Edge and try again.";
+  clearTimeout(t); saveQuiet(); setTimeout(()=>setStatus(msg, !copied), 400);
+  setStatus(copied ? "Outlook is opening. Click in the email body and press Ctrl+V (Cmd+V on a Mac) to paste the link, then send." : "Your browser blocked copying. Use Chrome or Edge and try again.", !copied);
+  window.location.href = "mailto:?subject=" + encodeURIComponent("Triage inspection: " + name);
 });
-$("importBtn").addEventListener("click",()=>{ $("importFile").value=""; $("importFile").click(); });
-$("importFile").addEventListener("change",()=>{
-  const f = $("importFile").files[0]; if(!f) return;
-  const r = new FileReader();
-  r.onload = ()=>{
-    try{
-      const d = JSON.parse(r.result);
-      if(!d || d.type!=="ya-triage-prep" || !d.state) throw new Error("not a YA triage prep file");
-      apply(d.state); saveQuiet();
-      const all = readSaved(); all[inspName()] = {savedAt:new Date().toISOString(), state: collect()}; writeSaved(all); renderSaved();
-      setStatus("Imported: " + inspName() + ". It's also in Open saved."); window.scrollTo(0,0);
-    }catch(e){ setStatus("That file couldn't be imported: " + e.message + ".", true); }
-  };
-  r.onerror = ()=> setStatus("That file couldn't be read.", true);
-  r.readAsText(f);
-});
+async function loadFromLink(){
+  const h = location.hash;
+  if(!h.startsWith("#p=")) return;
+  try{
+    const delta = await decodePrep(h.slice(3));
+    apply(Object.assign({}, DEFAULTS, {attendees:[], reported:[], enclosures:[], cc:[]}, delta));
+    $("reportDate").value = localISO();
+    saveQuiet();
+    const all = readSaved(); all[inspName()] = {savedAt:new Date().toISOString(), state: collect()}; writeSaved(all); renderSaved();
+    history.replaceState(null, "", location.pathname);
+    setStatus("Loaded: " + inspName().replace(/\.$/,"") + ". It's also in Open saved.");
+  }catch(e){ setStatus("That link couldn't be opened. Ask the office to send it again.", true); }
+}
 renderSaved();
+loadFromLink();
 if("serviceWorker" in navigator && (location.protocol==="https:"||location.hostname==="localhost")){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
 })();
 </script>
