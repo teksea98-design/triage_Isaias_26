@@ -83,7 +83,7 @@ button.primary{background:var(--teal);border-color:var(--teal);color:var(--surfa
 
 <section class="card" id="inspCard">
   <h2>Inspections</h2>
-  <p class="hint">Save this inspection to come back to it. Email to crew sends a link that opens this form on their iPad with everything you filled in.</p>
+  <p class="hint">Save this inspection to come back to it. Email to crew opens Outlook with the link already in the email. Crew: always open your inspection by tapping the link in the email, not the home-screen icon.</p>
   <div class="tools">
     <button type="button" id="saveInspBtn">Save inspection</button>
     <button type="button" id="openSavedBtn">Open saved (<span id="savedCount">0</span>)</button>
@@ -1105,22 +1105,16 @@ $("emailBtn").addEventListener("click", async ()=>{
   if(!Object.keys(delta).length){ setStatus("Fill in the property info first, then tap Email to crew.", true); return; }
   const link = location.origin + location.pathname + "#p=" + await encodePrep(delta);
   const name = inspName().replace(/\.$/,"");
-  const label = "Open triage form: " + name;
-  const esc = t => t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  const html = '<p>Tap the link below on your iPad to open your inspection. That\'s all you need to do.</p><p><a href="' + esc(link) + '">' + esc(label) + '</a></p>';
-  const text = "Tap the link below on your iPad to open your inspection.\n\n" + label + ":\n" + link;
-  let copied = false;
-  try{
-    if(window.ClipboardItem && navigator.clipboard.write){
-      await navigator.clipboard.write([new ClipboardItem({"text/html": new Blob([html],{type:"text/html"}), "text/plain": new Blob([text],{type:"text/plain"})})]);
-      copied = true;
-    }
-  }catch(e){}
-  if(!copied){ try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){} }
-  const msg = copied ? "Outlook is opening. Click in the email body and press Ctrl+V (Cmd+V on a Mac) to paste the link, then send." : "Your browser blocked copying. Use Chrome or Edge and try again.";
-  clearTimeout(t); saveQuiet(); setTimeout(()=>setStatus(msg, !copied), 400);
-  setStatus(copied ? "Outlook is opening. Click in the email body and press Ctrl+V (Cmd+V on a Mac) to paste the link, then send." : "Your browser blocked copying. Use Chrome or Edge and try again.", !copied);
-  window.location.href = "mailto:?subject=" + encodeURIComponent("Triage inspection: " + name);
+  const body = "Tap the link below on your iPad to open your inspection (" + name + "). Open it from this email every time, not the home-screen icon.\n\n" + link + "\n";
+  const mail = "mailto:?subject=" + encodeURIComponent("Triage inspection: " + name) + "&body=" + encodeURIComponent(body);
+  clearTimeout(t); saveQuiet();
+  if(mail.length > 1900){
+    try{ await navigator.clipboard.writeText(body); }catch(e){}
+    setStatus("Too much info for Outlook to carry in one link. Clear the long notes fields, then tap Email to crew again.", true);
+    return;
+  }
+  window.location.href = mail;
+  setTimeout(()=>setStatus("Outlook opened with the link already in the email. Add the crew's address and send."), 400);
 });
 async function loadFromLink(){
   const h = location.hash;
