@@ -1116,11 +1116,19 @@ $("emailBtn").addEventListener("click", async ()=>{
   window.location.href = mail;
   setTimeout(()=>setStatus("Outlook opened with the link already in the email. Add the crew's address and send."), 400);
 });
+function normQ(o){
+  const d = {};
+  Object.keys(o||{}).forEach(k=>{ let x=o[k]; if(x===null||x===undefined) return; if(typeof x==="number") x=String(x); if(typeof x==="string"){ x=x.trim(); if(!x) return; } d[k]=x; });
+  ["dol","contacted","inspDate"].forEach(k=>{ if(typeof d[k]==="string") d[k]=d[k].slice(0,10); });
+  if(d.addr){ const m=d.addr.match(/^(.*?),\s*([^,]+?),\s*(?:FL|Florida)\.?\s*,?\s*(\d{5})?\s*$/i); if(m){ if(!d.street) d.street=m[1].trim(); if(!d.city) d.city=m[2].trim(); if(m[3]&&!d.zip) d.zip=m[3]; } else if(!d.street) d.street=d.addr; delete d.addr; }
+  if(d.contact){ if(!d.repName) d.repName=d.contact.split(",")[0].trim(); delete d.contact; }
+  return d;
+}
 async function loadFromLink(){
   const h = location.hash;
-  if(!h.startsWith("#p=")) return;
+  if(!h.startsWith("#p=") && !h.startsWith("#q=")) return;
   try{
-    const delta = await decodePrep(h.slice(3));
+    const delta = h.startsWith("#q=") ? normQ(JSON.parse(decodeURIComponent(h.slice(3)))) : await decodePrep(h.slice(3));
     apply(Object.assign({}, DEFAULTS, {attendees:[], reported:[], enclosures:[], cc:[]}, delta));
     $("reportDate").value = localISO();
     saveQuiet();
